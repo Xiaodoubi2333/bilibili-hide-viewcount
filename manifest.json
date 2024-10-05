@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "bilibili-Ignored",
+  "version": "1.0",
+  "description": "屏蔽  正在观看人数、弹幕数量.Detect specific HTML code and comment it out.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.bilibili.com/*"
+  ],
+  "icons": {
+    "24": "icons/bilibilix24.png",
+    "128": "icons/bilibilix128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.bilibili.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ]
+}
