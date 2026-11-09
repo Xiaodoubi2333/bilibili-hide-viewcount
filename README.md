@@ -1,35 +1,60 @@
-# bilibili-Ignored
- 屏蔽 正在观看人数、弹幕数量.Detect specific HTML code and comment it out.
+# bilibili-hide-viewcount v1.0
 
+Chrome 扩展（Manifest V3）：在哔哩哔哩播放页自动隐藏「正在观看人数」「弹幕数量」及其分隔符，让播放器信息条只保留必要项。实现方式是把目标节点 `outerHTML` 转成注释节点替换，因此页面功能不受影响，只是不再显示。
 
-### 总结与反思
+## 文件结构
 
-#### 1. 初始代码的问题
+```text
+manifest.json     MV3 清单：content_scripts 注入 *.bilibili.com，权限 activeTab/scripting/storage/tabs
+content.js        MutationObserver 监听 DOM，命中后替换为注释节点并 disconnect
+icons/            bilibilix24.png、bilibilix128.png
+LICENSE           Apache License 2.0
+```
 
-初始代码的错误主要在于以下几个方面：
+## 启动
 
-- **选择器问题**: 初始代码使用了 `.bpx-player-video-info` 作为父元素的选择器，但未能确保该元素在 DOM 加载时存在。由于许多网页内容是动态加载的（如通过 JavaScript 渲染），在 DOMContentLoaded 事件触发时，该元素可能尚未被加载。
+**方式一：加载已解压目录（推荐，便于改动）**
 
-- **缺乏动态监控**: 初始代码仅在页面加载时执行一次，没有考虑到网页内容可能会在后续时间被更改或添加。这意味着即使在初始加载时没有找到目标元素，也无法在后续的 DOM 变更中处理它。
+1. 克隆或下载本仓库；
+2. 打开 `chrome://extensions/`，右上角开启「开发者模式」；
+3. 点「加载已解压的扩展程序」，选择仓库根目录；
+4. 打开任意 B 站视频页，信息条上的观看人数与弹幕数量消失即生效。
 
-#### 2. 使用 MutationObserver 的优势
+**方式二：安装打包文件**
 
-**MutationObserver** 是一个强大的工具，能够实时观察 DOM 变化并响应这些变化。其优势体现在：
+Release 页提供 `.crx` 与源码 `.zip`，crx 需在扩展页拖入安装（部分 Chrome 版本限制第三方 crx，建议用方式一）。
 
-- **实时性**: MutationObserver 允许在 DOM 内容发生变化时（如添加、删除节点）自动执行特定的回调函数。这使得能够及时捕获动态加载的内容。
+## 功能落点表
 
-- **灵活性**: 它支持监听各种 DOM 变化，如子元素的添加或删除、属性的变化等，使得处理动态内容更加灵活。
+| # | 功能 | 状态 | 落点 |
+|---|---|---|---|
+| 1 | 监听动态插入的播放器信息条 | 完成 | `content.js` 的 `MutationObserver`（`childList` + `subtree`） |
+| 2 | 隐藏「正在观看人数」 | 完成 | `.bpx-player-video-info-online` |
+| 3 | 隐藏分隔符 | 完成 | `.bpx-player-video-info-divide` |
+| 4 | 隐藏弹幕数量 | 完成 | `.bpx-player-video-info-dm` |
+| 5 | 命中后停止观察，避免无谓开销 | 完成 | `observer.disconnect()` |
+| 6 | 开关与配置界面 | 未实现 | 权限已申请 `storage`，尚未使用 |
 
-- **效率**: 与传统的轮询方法相比，MutationObserver 更加高效，因为它只在 DOM 发生变化时触发，而不是定期检查 DOM。
+## 版本记录
 
-#### 3. 反思与改进
+### v0.1 · 建库
 
-- **初步设计**: 在编写代码时，考虑动态加载内容是至关重要的。应该使用适当的工具（如 MutationObserver）来确保能够处理随时间变化的 DOM。
+- `chore: 初始化仓库（README / LICENSE / .gitignore）`：清单与图标入库。
 
-- **测试与调试**: 在开发 Chrome 插件时，应该经常使用浏览器的开发者工具（F12）来测试和调试代码。确保代码在实际网页环境中正确运行，并不断调整选择器和逻辑。
+### v1.0 · MutationObserver 方案
 
-- **逐步迭代**: 在实现功能时，可以从简单到复杂逐步构建代码，先确保基本功能的实现，然后逐步添加更多的逻辑和功能。
+- `feat: 清单与脚本落地，MutationObserver 命中信息条即替换`：确定并落地「持续观察 + 命中即替换」的实现，同时补上设计说明。
+  - **为什么不用单次查询**：B 站信息条由 JS 后注入，页面加载完成时节点通常还不存在，单次 `querySelector` 会落空。
+  - **现在的做法**：`MutationObserver` 观察整个文档，回调里定位 `.bpx-player-sending-bar .bpx-player-video-info`，找到即替换并 `disconnect`。
+  - **代价**：页面初始阶段会触发多次回调，但命中后立即停止，实际开销可忽略。
 
-#### 4. 结论
+### v1.1 · 清理
 
-通过本次经历，我认识到在处理现代网页中的动态内容时，传统的 DOM 操作方式可能无法满足需求。利用 MutationObserver 等现代 API，可以更高效地处理动态变化的网页内容，从而实现更可靠的功能。未来在开发过程中，将更加注重选择器的准确性和对动态内容的处理，确保代码的健壮性与可维护性。
+- `chore: 移除误提交的 .idea，统一 README / License / .gitignore`。
+
+## 已知限制
+
+- 选择器绑定 B 站当前播放器结构（`bpx-player-*`），页面改版后需同步更新。
+- 清单里同时申请了 `activeTab`、`scripting`、`storage`、`tabs`，其中 `scripting` 与 `tabs` 当前实现并未使用，可在下个版本收窄权限以降低审核风险。
+- 仅做隐藏，不改变播放器布局间距，个别页面可能出现留白。
+- 仓库内曾误提交 `.idea/` 目录，已移除并补充忽略规则。
